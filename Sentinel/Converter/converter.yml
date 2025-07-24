@@ -1,0 +1,76 @@
+name: Auto Convert Sentinel Rules
+
+on:
+  push:
+    paths:
+      - '/**/*.json' # Locations to check for push requests
+      - '/**/*.yaml' # (Insert your directory here)
+  pull_request:
+    paths:
+      - '/**/*.json' # Locations to check for pull requests
+      - '/**/*.yaml'  # (Insert your directory here)
+
+jobs:
+  convert:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full git history for diff
+
+      - name: Install PowerShell dependencies
+        run: |
+          Install-Module powershell-yaml -Force -Scope CurrentUser
+          Install-Module SentinelARConverter -AcceptLicense -Force
+        shell: pwsh
+
+      - name: Detect changed rule files
+        id: get_changes
+        run: |
+          $before = "${{ github.event.before }}"
+          $after  = "${{ github.sha }}"
+
+          $changed = git diff --name-only $before $after | Where-Object { # Locate any files that have had changes 
+              $_ -like '/*.json' -or $_ -like '/*.yaml' # Search our folders for those files (Insert your directory here)
+          }
+
+          if ($changed.Count -eq 0) {
+              Write-Host "No rule files changed. Skipping conversion."
+              exit 0
+          }
+
+          # Write file paths to output file
+          $changed | Out-File changed-files.txt -Encoding utf8 # Need this so it can be interpreted by the PS script
+        shell: pwsh
+
+      - name: Run converter on changed files
+        run: |
+          $files = Get-Content changed-files.txt
+          if ($files.Count -eq 0) {
+              Write-Host "Nothing to convert."
+              exit 0
+          }
+
+          Write-Host "Converting files:"
+          $files | ForEach-Object { Write-Host "- $_" }
+
+          .\converter.ps1 -FilePath $files # PS converter script
+        shell: pwsh
+
+      - name: Commit and push changes to main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "King Of Conversion"
+          git config user.email "ConverterBot@gmail.com"
+
+          git add *.json *.yaml
+
+          if (git diff --cached --quiet) {
+            Write-Host "No changes to commit."
+          } else {
+            git commit -m "Auto-commit updated rule files"
+            git push
+          }
+        shell: pwsh
