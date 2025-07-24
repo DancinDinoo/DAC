@@ -56,7 +56,7 @@ jobs:
           Write-Host "Converting files:"
           $files | ForEach-Object { Write-Host "- $_" }
 
-          .\converter.ps1 -FilePath $files # PS converter script
+          .\bidirectionalconverter.ps1 -FilePath $files # PS converter script
         shell: pwsh
 
       - name: Commit and push changes to main
