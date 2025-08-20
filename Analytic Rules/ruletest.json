@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2024-01-01-preview",
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/94758d92-a07b-4b92-9203-31ee1ddde000')]",
+      "kind": "Scheduled",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/94758d92-a07b-4b92-9203-31ee1ddde000')]",
+      "properties": {
+        "alertRuleTemplateName": "94758d92-a07b-4b92-9203-31ee1ddde000",
+        "customDetails": null,
+        "description": "Detects when any log source being ingested has not been seen for longer than the appropriate time. For some this is normal IE Microsoft diagnostic type logs however if this is an onboarded source this needs to be escalated and investigated.",
+        "displayName": "Test Alert",
+        "enabled": true,
+        "entityMappings": null,
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": [],
+            "groupByEntities": [],
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "reopenClosedIncident": false
+          }
+        },
+        "query": "let watchlist =pack_array(\"SecurityIncident\", \"SecurityAlert\");\nlet onedaytimer = pack_array(\"SecurityIncident\", \"SecurityAlert\"); // Appropriate timers based on log data\nlet twodaytimer = pack_array(\"\");\nUsage\n| where DataType in (watchlist)\n| summarize LastSeen = arg_max(TimeGenerated, *) by DataType\n| where (DataType !in(onedaytimer, twodaytimer) and LastSeen < ago(2h)) or (DataType in (onedaytimer) and LastSeen < ago(1d) or (DataType in (twodaytimer) and LastSeen < ago(2d))) // Dropped for longer than accepted period\n| project LastSeen, DataType // Last seen here refers to the latest of the hours, so if the lastseen is 10am the time period is 9-10am and the true last time is somewhere in that range",
+        "queryFrequency": "PT1H",
+        "queryPeriod": "P7D",
+        "sentinelEntitiesMappings": [
+          {
+            "columnName": "DataType"
+          }
+        ],
+        "severity": "High",
+        "subTechniques": [],
+        "suppressionDuration": "PT5H",
+        "suppressionEnabled": false,
+        "templateVersion": "1.0.0",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0
+      },
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules"
+    }
+  ]
+}
