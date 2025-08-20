@@ -1,0 +1,36 @@
+id: 94758d92-a07b-4b92-9203-31ee1ddde000
+name: Test Alert
+version: 1.0.0
+kind: Scheduled
+description: Detects when any log source being ingested has not been seen for longer than the appropriate time. For some this is normal IE Microsoft diagnostic type logs however if this is an onboarded source this needs to be escalated and investigated.
+severity: High
+queryFrequency: 1h
+queryPeriod: 7d
+triggerOperator: gt
+triggerThreshold: 0
+query: |-
+  let watchlist =pack_array("SecurityIncident", "SecurityAlert");
+  let onedaytimer = pack_array("SecurityIncident", "SecurityAlert"); // Appropriate timers based on log data
+  let twodaytimer = pack_array("");
+  Usage
+  | where DataType in (watchlist)
+  | summarize LastSeen = arg_max(TimeGenerated, *) by DataType
+  | where (DataType !in(onedaytimer, twodaytimer) and LastSeen < ago(2h)) or (DataType in (onedaytimer) and LastSeen < ago(1d) or (DataType in (twodaytimer) and LastSeen < ago(2d))) // Dropped for longer than accepted period
+  | project LastSeen, DataType // Last seen here refers to the latest of the hours, so if the lastseen is 10am the time period is 9-10am and the true last time is somewhere in that range
+eventGroupingSettings:
+  aggregationKind: SingleAlert
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: false
+    groupByAlertDetails: []
+    groupByCustomDetails: []
+    groupByEntities: []
+    lookbackDuration: 5h
+    matchingMethod: AllEntities
+    reopenClosedIncident: false
+sentinelEntitiesMappings:
+- columnName: DataType
+suppressionDuration: 5h
+suppressionEnabled: false
+
